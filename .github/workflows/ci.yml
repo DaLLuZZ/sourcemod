@@ -14,16 +14,22 @@ jobs:
         os: [ubuntu-18.04, ubuntu-latest, windows-latest]
         include:
           - os: windows-latest
+            asset_name: 'package-windows'
             os_short: win
             compiler_cc: msvc
+            zip_cmd: 'powershell Compress-Archive build/package package.zip'
           - os: ubuntu-latest
+            asset_name: 'package-linux-latest'
             os_short: linux
             compiler_cc: clang
             compiler_cxx: clang++
+            zip_cmd: 'zip -r package.zip build/package'
           - os: ubuntu-18.04
+            asset_name: 'package-clang'
             os_short: linux
             compiler_cc: clang-3.9
             compiler_cxx: clang++-3.9
+            zip_cmd: 'zip -r package.zip build/package'
       fail-fast: false
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.os_short }}-${{ matrix.compiler_cc }}
@@ -95,3 +101,15 @@ jobs:
           cd build
           python ../configure.py --enable-optimize --sdks=${{ join(fromJSON(env.SDKS)) }} --targets=${{ env.ARCH }} --mms-path=${{ env.DEPENDENCIES_ROOT }}/mmsource-${{ env.MMSOURCE_VERSION }} --hl2sdk-root=${{ env.DEPENDENCIES_ROOT }} --mysql-path=${{ env.DEPENDENCIES_ROOT }}/mysql-${{ env.MYSQL_VERSION }} --mysql64-path=${{ env.DEPENDENCIES_ROOT }}/mysql-${{ env.MYSQL_VERSION }}-x86_64
           ambuild
+
+      - name: Zip Release
+        working-directory: sourcemod
+        run: ${{ matrix.zip_cmd }}
+
+      - name: Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ github.workspace }}/sourcemod/package.zip
+          asset_name: ${{ matrix.asset_name }}.zip
+          tag: ${{ github.ref }}
